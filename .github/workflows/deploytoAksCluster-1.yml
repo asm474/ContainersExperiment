@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: demoarc7411.azurecr.io
+        username: ${{ secrets.acr_demoarc7411_username }}
+        password: ${{ secrets.acr_demoarc7411_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/" -f  "Dockerfile" -t demoarc7411.azurecr.io/akslabamna:${{ github.sha }} --label dockerfile-path=Dockerfile
+        docker push demoarc7411.azurecr.io/akslabamna:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_akslabamna_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep akslabamnanamespace | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace akslabamnanamespace`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: akslabamnanamespace
+        container-registry-url: demoarc7411.azurecr.io
+        container-registry-username: ${{ secrets.acr_demoarc7411_username }}
+        container-registry-password: ${{ secrets.acr_demoarc7411_password }}
+        secret-name: akslabamnadockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: akslabamnanamespace
+        manifests: |
+          manifests/deployment-7.yml
+          manifests/service-7.yml
+        images: |
+          demoarc7411.azurecr.io/akslabamna:${{ github.sha }}
+        imagepullsecrets: |
+          akslabamnadockerauth
