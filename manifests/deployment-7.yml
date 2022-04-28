@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "akslabamna-a4a5"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "akslabamna-a4a5"
+  template:
+    metadata:
+      labels:
+        app: "akslabamna-a4a5"
+    spec:
+      containers:
+        - name: "akslabamna-a4a5"
+          image: "demoarc7411.azurecr.io/akslabamna"
+          ports:
+          - containerPort: 80
